@@ -89,17 +89,12 @@ class Bot(object):
         else:
             penalty = -100 * np.abs(player_y - pipe_mid)
 
-        penalty = penalty * 2 if not self.score else penalty
-
         self._qvalues[self.last_state][self.last_action] = penalty
         self.dump_qvalues()
 
         for i, (state, action) in enumerate(self.moves):
             # Backpropagate the penalty
-            if self.score:
-                self._qvalues[state][action] -= np.abs(penalty) ** (1. / (i + 1))
-            else:
-                self._qvalues[state][action] -= np.abs(penalty) / float(i + 1)
+            self._qvalues[state][action] -= np.abs(penalty) ** (1. / (i + 1))
 
         print 'Iteration: {}, Score: {}'.format(self.iteration, self.score)
 
