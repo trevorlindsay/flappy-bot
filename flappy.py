@@ -10,7 +10,7 @@ from pygame.locals import *
 from bot import Bot
 
 # frames per second
-FPS = 30
+FPS = 35
 
 # screen dimensions
 SCREENWIDTH  = 288
@@ -20,7 +20,7 @@ SCREENHEIGHT = 512
 SHIFTSPEED = -4
 
 # gap between upper and lower part of pipe
-PIPEGAPSIZE  = 100
+PIPEGAPSIZE  = 125
 
 # where to position the base
 BASEY = SCREENHEIGHT * 0.79
@@ -417,7 +417,8 @@ def checkCrash(player, upperPipes, lowerPipes):
 
     # if player crashes into ground
     if player['y'] + player['h'] >= BASEY - 1:
-        bot.onCrash(ground=True)
+        if botPlaying:
+            bot.onCrash(ground=True)
         return [True, True]
     else:
 
@@ -441,7 +442,8 @@ def checkCrash(player, upperPipes, lowerPipes):
             lCollide = pixelCollision(playerRect, lPipeRect, pHitMask, lHitmask)
 
             if uCollide or lCollide:
-                bot.onCrash(player_y=player['y'], pipe_mid=uPipe['y'] + PIPEGAPSIZE / 2)
+                if botPlaying:
+                    bot.onCrash(player_y=player['y'], pipe1=uPipe['y'], pipe2=lPipe['y'], pipeH=pipeH)
                 return [True, False]
 
     return [False, False]
