@@ -13,7 +13,7 @@ class Bot(object):
         self._last_state = None
         self._last_action = None
         self._moves = deque([])
-        self._reward = (0, 100)
+        self._reward = (0, 1000)
         self._qvalues = defaultdict(self.init_qvalues)
         self.load_qvalues()
         self._last_score = 0
@@ -65,7 +65,7 @@ class Bot(object):
             for i, (state, action) in enumerate(self.moves):
                 # Backpropagate the reward
                 reward = 1000
-                self.qvalues[state][action] += reward / float(i + 1)
+                self.qvalues[state][action] += reward ** (1. / (i + 1))
 
         self._last_state = state
         self._last_action = action
@@ -84,10 +84,7 @@ class Bot(object):
 
     def onCrash(self, ground=False, player_y=0, pipe_mid=0):
 
-        if ground:
-            penalty = -100
-        else:
-            penalty = -100 * np.abs(player_y - pipe_mid)
+        penalty = -100
 
         self._qvalues[self.last_state][self.last_action] = penalty
         self.dump_qvalues()
