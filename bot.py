@@ -21,8 +21,10 @@ class Bot(object):
         self._pipegapsize = pipegapsize
         self.discount_rate = 1.0
 
-    def reset(self):
+    def reset(self, score=True):
         self._states, self._actions  = deque([]), deque([])
+        if score:
+            self._score = 0
 
     def get_action(self, player_x, player_y, upperpipe_x, upperpipe_y, vel):
 
@@ -40,7 +42,7 @@ class Bot(object):
                 qvalue[action] += 100 ** (1 / (i + 1))
                 self._qvalues[state] = qvalue
 
-            self.reset()
+            self.reset(score=False)
 
         self._last_state = state
         self._last_action = action
@@ -57,15 +59,15 @@ class Bot(object):
         qvalue[self.last_action] = -1000
         self._qvalues[self.last_state] = qvalue
 
-        if self.iteration % 5 == 0 and self.iteration != 0:
-            self.dump_qvalues()
-            print 'Dumped q-values to json.'
+        self.dump_qvalues()
         self._iteration += 1
 
         for i, (state, action) in enumerate(zip(self.states, self.actions)):
             qvalue = self.qvalues.get(state, [0,0])
             qvalue[action] += -100 ** (1/(i + 1))
             self._qvalues[state] = qvalue
+
+        print 'Iteration: {}, Score: {}'.format(self.iteration, self._score)
 
     def update_qvalue(self, score, state):
         self._qvalues[self.last_state][self.last_action] = \
