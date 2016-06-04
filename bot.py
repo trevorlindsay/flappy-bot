@@ -2,84 +2,46 @@ __author__ = 'trevorlindsay'
 
 import json
 import numpy as np
-from collections import deque
+from collections import deque, defaultdict
 
 
 class Bot(object):
 
-    def __init__(self, pipegapsize):
+    def __init__(self):
 
         self._iteration = 0
         self._last_state = None
         self._last_action = None
-        self._current_state = None
-        self._actions = deque([])
-        self._states = deque([])
-        self._score = 0
+        self._moves = deque([])
         self._reward = (0, 100)
-        self._qvalues = self.load_qvalues()
-        self._pipegapsize = pipegapsize
+        self._qvalues = defaultdict(self.init_qvalues)
+        self.load_qvalues()
+        self._last_score = 0
+        self._training_data = []
+        self.score = 0
         self.discount_rate = 1.0
 
-    def reset(self, score=True):
-        self._states, self._actions  = deque([]), deque([])
-        if score:
-            self._score = 0
 
-    def get_action(self, player_x, player_y, upperpipe_x, upperpipe_y, vel):
+    def load_qvalues(self):
+        try: self.qvalues.update(json.load(open('qvalues.json', 'rb')))
+        except: return
 
-        state, qvalue = self.get_qvalue(player_x, player_y, upperpipe_x, upperpipe_y, vel)
-        action = np.argmax(qvalue) if qvalue[0] != qvalue[-1] else 0
-        score = self.get_score(player_x, upperpipe_x)
-
-        if self.last_state and self._last_action:
-            self.update_qvalue(score, state)
-
-        if score:
-
-            for i, (state, action) in enumerate(zip(self.states, self.actions)):
-                qvalue = self.qvalues.get(state, [0, 0])
-                qvalue[action] += 100 ** (1 / (i + 1))
-                self._qvalues[state] = qvalue
-
-            self.reset(score=False)
-
-        self._last_state = state
-        self._last_action = action
-        self._score += score
-
-        self._states.appendleft(state)
-        self._actions.appendleft(action)
-
-        return action
-
-    def update_crash(self):
-
-        qvalue = self.qvalues.get(self.last_state, [0,0])
-        qvalue[self.last_action] = -1000
-        self._qvalues[self.last_state] = qvalue
-
-        self.dump_qvalues()
-        self._iteration += 1
-
-        for i, (state, action) in enumerate(zip(self.states, self.actions)):
-            qvalue = self.qvalues.get(state, [0,0])
-            qvalue[action] += -100 ** (1/(i + 1))
-            self._qvalues[state] = qvalue
-
-        print 'Iteration: {}, Score: {}'.format(self.iteration, self._score)
-
-    def update_qvalue(self, score, state):
-        self._qvalues[self.last_state][self.last_action] = \
-            self.reward[score] + self.discount_rate * np.max(self.qvalues.get(state, [0,0]))
 
     @staticmethod
-    def get_score(player_x, upperpipe_x):
+    def init_qvalues():
+        return [0,0]
 
-        if upperpipe_x <= player_x < upperpipe_x + 4:
-            return 1
-        else:
-            return 0
+
+    def dump_qvalues(self):
+        json.dump(self.qvalues, open('qvalues.json', 'wb'))
+
+
+    def reset(self):
+        self._moves = deque([])
+        self._training_data.append((self.iteration, self.score))
+        self.score = 0
+        self._iteration += 1
+
 
     def get_qvalue(self, player_x, player_y, upperpipe_x, upperpipe_y, vel):
 
@@ -87,32 +49,64 @@ class Bot(object):
         y_dist = int(np.round(player_y - upperpipe_y, -1))
         state = '{}:{}:{}'.format(x_dist, y_dist, vel)
 
-        return state, self.qvalues.get(state, [0,0])
+        return state, self.qvalues[state]
 
-    def load_qvalues(self):
 
-        try:
-            return json.load(open('qvalues.json', 'rb'))
-        except:
-            return self.init_qvalues()
+    def get_action(self, player_x, player_y, upperpipe_x, upperpipe_y, vel):
 
-    def dump_qvalues(self):
-        json.dump(self.qvalues, open('qvalues.json', 'wb'))
+        state, qvalue = self.get_qvalue(player_x, player_y, upperpipe_x, upperpipe_y, vel)
+        action = np.argmax(qvalue) if qvalue[0] != qvalue[-1] else 0
+        score = 0 if self.score == self.last_score else 1
 
-    @staticmethod
-    def init_qvalues():
+        if self.last_state and self._last_action:
+            self.update_qvalue(score, state)
 
-        qvalues = {}
-        for x in range(-430, 40, 10):
-            for y in range(300, 560, 10):
-                for v in range(-9, 11, 1):
-                    qvalues['{}:{}:{}'.format(x, y, v)] = [0, 0]
+        if score:
+            for i, (state, action) in enumerate(self.moves):
+                # Backpropagate the reward
+                reward = 1000
+                self.qvalues[state][action] += reward / float(i + 1)
 
-        return qvalues
+        self._last_state = state
+        self._last_action = action
+        self._last_score = self.score
 
-    @property
-    def pipegapsize(self):
-        return self._pipegapsize
+        self._moves.appendleft((state, action))
+
+        return action
+
+
+    def update_qvalue(self, score, state):
+
+        self._qvalues[self.last_state][self.last_action] = \
+            self.reward[score] + self.discount_rate * np.max(self.qvalues[state])
+
+
+    def onCrash(self, ground=False, player_y=0, pipe_mid=0):
+
+        if ground:
+            penalty = -100
+        else:
+            penalty = -100 * np.abs(player_y - pipe_mid)
+
+        penalty = penalty * 2 if not self.score else penalty
+
+        self._qvalues[self.last_state][self.last_action] = penalty
+        self.dump_qvalues()
+
+        for i, (state, action) in enumerate(self.moves):
+            # Backpropagate the penalty
+            if self.score:
+                self._qvalues[state][action] -= np.abs(penalty) ** (1. / (i + 1))
+            else:
+                self._qvalues[state][action] -= np.abs(penalty) / float(i + 1)
+
+        print 'Iteration: {}, Score: {}'.format(self.iteration, self.score)
+
+
+    def dump_training_data(self):
+        json.dump(self.training_data, open('training_data.json', 'wb'))
+
 
     @property
     def qvalues(self):
@@ -123,10 +117,6 @@ class Bot(object):
         return self._iteration
 
     @property
-    def current_state(self):
-        return self._current_state
-
-    @property
     def last_state(self):
         return self._last_state
 
@@ -135,13 +125,17 @@ class Bot(object):
         return self._last_action
 
     @property
-    def actions(self):
-        return self._actions
+    def moves(self):
+        return self._moves
 
     @property
     def reward(self):
         return self._reward
 
     @property
-    def states(self):
-        return self._states
+    def last_score(self):
+        return self._last_score
+
+    @property
+    def training_data(self):
+        return self._training_data

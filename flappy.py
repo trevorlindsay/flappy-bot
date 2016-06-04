@@ -20,7 +20,7 @@ SCREENHEIGHT = 512
 SHIFTSPEED = -4
 
 # gap between upper and lower part of pipe
-PIPEGAPSIZE  = 150
+PIPEGAPSIZE  = 100
 
 # where to position the base
 BASEY = SCREENHEIGHT * 0.79
@@ -48,7 +48,7 @@ PIPES_LIST = ('assets/sprites/pipe-green.png',
               'assets/sprites/pipe-red.png')
 
 # bot to play game
-bot = Bot(PIPEGAPSIZE)
+bot = Bot()
 botPlaying = True
 
 
@@ -255,6 +255,7 @@ def mainGame(movementInfo):
             pipeMidPos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 score += 1
+                bot.score += 1
                 SOUNDS['point'].play()
 
         # Change position of wings
@@ -416,7 +417,7 @@ def checkCrash(player, upperPipes, lowerPipes):
 
     # if player crashes into ground
     if player['y'] + player['h'] >= BASEY - 1:
-        bot.update_crash()
+        bot.onCrash(ground=True)
         return [True, True]
     else:
 
@@ -440,7 +441,7 @@ def checkCrash(player, upperPipes, lowerPipes):
             lCollide = pixelCollision(playerRect, lPipeRect, pHitMask, lHitmask)
 
             if uCollide or lCollide:
-                bot.update_crash()
+                bot.onCrash(player_y=player['y'], pipe_mid=uPipe['y'] + PIPEGAPSIZE / 2)
                 return [True, False]
 
     return [False, False]
