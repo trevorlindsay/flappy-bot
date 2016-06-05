@@ -10,7 +10,7 @@ from pygame.locals import *
 from bot import Bot
 
 # frames per second
-FPS = 30
+FPS = 60
 
 # screen dimensions
 SCREENWIDTH  = 288
@@ -20,7 +20,7 @@ SCREENHEIGHT = 512
 SHIFTSPEED = -4
 
 # gap between upper and lower part of pipe
-PIPEGAPSIZE  = 125
+PIPEGAPSIZE  = 100
 
 # where to position the base
 BASEY = SCREENHEIGHT * 0.79
@@ -51,7 +51,7 @@ PIPES_LIST = ('assets/sprites/pipe-green.png',
 bot = Bot()
 botPlaying = True
 
-SOUNDS_ON = False
+SOUNDS_ON = True
 
 
 def main():
