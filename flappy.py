@@ -10,7 +10,7 @@ from pygame.locals import *
 from bot import Bot
 
 # frames per second
-FPS = 35
+FPS = 30
 
 # screen dimensions
 SCREENWIDTH  = 288
@@ -50,6 +50,8 @@ PIPES_LIST = ('assets/sprites/pipe-green.png',
 # bot to play game
 bot = Bot()
 botPlaying = True
+
+SOUNDS_ON = False
 
 
 def main():
@@ -154,7 +156,8 @@ def showWelcomeAnimation():
                 sys.exit()
             if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP) and not botPlaying:
                 # make first flap sound and return values for mainGame
-                SOUNDS['wing'].play()
+                if SOUNDS_ON:
+                    SOUNDS['wing'].play()
                 return {'playery': playery + playerShmVals['val'],
                         'basex': basex,
                         'playerIndexGen': playerIndexGen}
@@ -226,7 +229,8 @@ def mainGame(movementInfo):
                 if playery > -2 * IMAGES['player'][0].get_height():
                     playerVelY = playerFlapAcc
                     playerFlapped = True
-                    SOUNDS['wing'].play()
+                    if SOUNDS_ON:
+                        SOUNDS['wing'].play()
 
         if botPlaying:
             currentPipe = upperPipes[0] if playerx - upperPipes[0]['x'] < 30 else upperPipes[1]
@@ -234,7 +238,8 @@ def mainGame(movementInfo):
                 if playery > -2 * IMAGES['player'][0].get_height():
                     playerVelY = playerFlapAcc
                     playerFlapped = True
-                    SOUNDS['wing'].play()
+                    if SOUNDS_ON:
+                        SOUNDS['wing'].play()
 
         # check for crash here
         crashTest = checkCrash({'x': playerx, 'y': playery, 'index': playerIndex},
@@ -256,7 +261,8 @@ def mainGame(movementInfo):
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 score += 1
                 bot.score += 1
-                SOUNDS['point'].play()
+                if SOUNDS_ON:
+                    SOUNDS['point'].play()
 
         # Change position of wings
         if (loopIter + 1) % 3 == 0:
@@ -322,8 +328,9 @@ def showGameOverScreen(crashInfo):
     upperPipes, lowerPipes = crashInfo['upperPipes'], crashInfo['lowerPipes']
 
     # play hit and die sounds
-    SOUNDS['hit'].play()
-    if not crashInfo['groundCrash']:
+    if SOUNDS_ON:
+        SOUNDS['hit'].play()
+    if not crashInfo['groundCrash'] and SOUNDS_ON:
         SOUNDS['die'].play()
 
     while True:
@@ -418,7 +425,7 @@ def checkCrash(player, upperPipes, lowerPipes):
     # if player crashes into ground
     if player['y'] + player['h'] >= BASEY - 1:
         if botPlaying:
-            bot.onCrash(ground=True)
+            bot.onCrash(True)
         return [True, True]
     else:
 
@@ -443,7 +450,7 @@ def checkCrash(player, upperPipes, lowerPipes):
 
             if uCollide or lCollide:
                 if botPlaying:
-                    bot.onCrash(player_y=player['y'], pipe1=uPipe['y'], pipe2=lPipe['y'], pipeH=pipeH)
+                    bot.onCrash(False, player['y'], uPipe['y'], pipeH)
                 return [True, False]
 
     return [False, False]

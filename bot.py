@@ -13,14 +13,15 @@ class Bot(object):
         self._last_state = None
         self._last_action = None
         self._moves = deque([])
-        self._reward = (-1, 100, -1000)
+        self._reward = (1, 1, -1000)
         self._qvalues = defaultdict(self.init_qvalues)
         self.load_qvalues()
         self._last_score = 0
         self._training_data = []
+        self.action_count = 0
         self.score = 0
-        self.discount_rate = 0.5
-        self.learning_rate = 0.95
+        self.discount_rate = 0.8
+        self.lr = 0.95
 
 
     def load_qvalues(self):
@@ -41,6 +42,7 @@ class Bot(object):
         self._moves = deque([])
         self._training_data.append((self.iteration, self.score))
         self.score = 0
+        self.action_count = 0
         self._iteration += 1
 
 
@@ -60,45 +62,45 @@ class Bot(object):
         action = np.argmax(qvalue) if qvalue[0] != qvalue[-1] else 0
         score = 0 if self.score == self.last_score else 1
 
-        if self.last_state and self._last_action:
+        if self.last_state:
             self.update_qvalue(score, state)
-
-        if score:
-            for i, (state, action) in enumerate(self.moves):
-                # Backpropagate the reward
-                reward = 1000
-                # self.qvalues[state][action] += reward ** (1. / (i + 1))
+            self._moves.appendleft((self.last_state, self.last_action, state))
 
         self._last_state = state
         self._last_action = action
         self._last_score = self.score
-
-        self._moves.appendleft((state, action))
+        self.action_count += 1
 
         return action
 
 
     def update_qvalue(self, score, state):
 
+        last_state = self.last_state
+        action = self.last_action
+
         if state:
-            self._qvalues[self.last_state][self.last_action] += \
-                self.learning_rate * (self.reward[score] + self.discount_rate * np.max(self.qvalues[state]) - self._qvalues[self.last_state][self.last_action])
+            self._qvalues[last_state][action] = (self._qvalues[last_state][action] + self.lr *
+                 (self.reward[score] + self.discount_rate * max(self.qvalues[state])))
         else:
-            self._qvalues[self.last_state][self.last_action] += \
-                self.learning_rate * (self.reward[score] - self._qvalues[self.last_state][self.last_action])
+            self._qvalues[last_state][action] = \
+                (self._qvalues[last_state][action] + self.lr * (self.reward[score]))
 
 
-    def onCrash(self, ground=False, player_y=0, pipe1=0, pipe2=0, pipeH=0):
+    def onCrash(self, ground=False, playerY=0, pipeY=0, pipeH=0):
 
         self.update_qvalue(score=-1, state=None)
         self.dump_qvalues()
 
-        if ground or np.abs(player_y - (pipe1 + pipeH + pipe2) / 2) > 100:
-            for i, (state, action) in enumerate(self.moves):
-                # Backpropagate the penalty
-                self._qvalues[state][action] -= np.abs(self.reward[-1]) ** (self.learning_rate * (1. / (i + 1)))
+        # Backpropagate the penalty
+        for i, (state, action, new_state) in enumerate(self.moves):
+            if action == 1 and playerY < (pipeY + pipeH):
+                self._qvalues[state][action] = (self._qvalues[state][action] + self.lr *
+                     (self.reward[-1] + self.discount_rate * max(self.qvalues[new_state])))
+            else:
+                self._qvalues[state][action] += 1 - (1000 ** (self.lr * (1. / (i + 1))))
 
-        print 'Iteration: {}, Score: {}'.format(self.iteration, self.score)
+        print 'Iteration: {}, Score: {}, Actions: {}'.format(self.iteration, self.score, self.action_count)
 
 
     def dump_training_data(self):
