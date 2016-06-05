@@ -49,7 +49,8 @@ class Bot(object):
     def get_qvalue(self, player_x, player_y, upperpipe_x, upperpipe_y, vel):
 
         round_to = 10 if player_x - upperpipe_x > -300 else 50
-        x_dist = int(player_x) - int(upperpipe_x % round_to)
+        x_dist = int(player_x - upperpipe_x)
+        x_dist = int(x_dist - (x_dist % round_to))
         y_dist = int(np.round(player_y - upperpipe_y, -1))
         state = '{}:{}:{}'.format(x_dist, y_dist, vel)
 
