@@ -51,7 +51,7 @@ PIPES_LIST = ('assets/sprites/pipe-green.png',
 bot = Bot()
 botPlaying = True
 
-SOUNDS_ON = True
+SOUNDS_ON = False
 
 
 def main():

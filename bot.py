@@ -13,19 +13,19 @@ class Bot(object):
         self._last_state = None
         self._last_action = None
         self._moves = deque([])
-        self._reward = (1, -100, -1000)
+        self._reward = (1, -1000, -1000)
         self._qvalues = defaultdict(self.init_qvalues)
         self.load_qvalues()
-        self._last_score = 0
         self._training_data = []
         self.action_count = 0
         self.score = 0
-        self.discount_rate = 1.0
-        self.lr = 0.95
+        self.discount_rate = 0.85
+        self.lr = 0.7
+        self.lr_decay = 1
 
 
     def load_qvalues(self):
-        try: self.qvalues.update(json.load(open('qvalues1.json', 'rb')))
+        try: self.qvalues.update(json.load(open('qvalues.json', 'rb')))
         except: return
 
 
@@ -35,7 +35,7 @@ class Bot(object):
 
 
     def dump_qvalues(self):
-        json.dump(self.qvalues, open('qvalues1.json', 'wb'))
+        json.dump(self.qvalues, open('qvalues.json', 'wb'))
 
 
     def reset(self):
@@ -48,10 +48,11 @@ class Bot(object):
 
     def get_qvalue(self, player_x, player_y, upperpipe_x, upperpipe_y, vel):
 
-        round_to = 10 if player_x - upperpipe_x > -300 else 10
+        round_to = 5 if player_x - upperpipe_x > -300 else 5
         x_dist = int(player_x - upperpipe_x)
         x_dist = int(x_dist - (x_dist % round_to))
-        y_dist = int(np.round(player_y - upperpipe_y, -1))
+        y_dist = int(player_y - upperpipe_y)
+        y_dist = int(y_dist - (y_dist % round_to))
         state = '{}:{}:{}'.format(x_dist, y_dist, vel)
 
         return state, self.qvalues[state]
@@ -61,22 +62,19 @@ class Bot(object):
 
         state, qvalue = self.get_qvalue(player_x, player_y, upperpipe_x, upperpipe_y, vel)
         action = np.argmax(qvalue) if qvalue[0] != qvalue[-1] else 0
-        score = 0 if self.score == self.last_score else 1
 
         if self.last_state:
             self._moves.appendleft((self.last_state, self.last_action, state))
 
         self._last_state = state
         self._last_action = action
-        self._last_score = self.score
         self.action_count += 1
 
         return action
 
 
     def update_qvalue(self, last_state, action, new_state, score):
-        self._qvalues[last_state][action] +=  \
-                self.lr * (self.reward[score] + self.discount_rate * max(self.qvalues[new_state]))
+        self._qvalues[last_state][action] +=  self.lr * ((self.reward[score] + self.discount_rate * max(self.qvalues[new_state])) - self._qvalues[last_state][action])
 
 
     def onCrash(self, ground=False, playerY=0, pipeY=0, pipeH=0):
@@ -84,16 +82,18 @@ class Bot(object):
         for i, (state, action, new_state) in enumerate(self.moves):
             if i <= 2:
                 self.update_qvalue(state, action, new_state, 2)
-            elif ground or (action == 1 and playerY < (pipeY + pipeH)):
+            elif ground or (action == 1 and playerY < (pipeY + pipeH - 5)):
                 self.update_qvalue(state, action, new_state, 1)
             else:
                 self.update_qvalue(state, action, new_state, 0)
 
-        print 'Iteration: {}, Score: {}, Actions: {}'.format(self.iteration, self.score, self.action_count)
+        print 'Iteration: {}, Score: {}'.format(self.iteration, self.score)
 
         if self.iteration % 10 == 0:
             self.dump_qvalues()
             self.dump_training_data()
+
+        self.lr *= self.lr_decay
 
 
     def dump_training_data(self):
@@ -123,10 +123,6 @@ class Bot(object):
     @property
     def reward(self):
         return self._reward
-
-    @property
-    def last_score(self):
-        return self._last_score
 
     @property
     def training_data(self):
