@@ -3,12 +3,16 @@ __author__ = 'trevorlindsay'
 import json
 import numpy as np
 from collections import deque, defaultdict
+import tensorflow as tf
+import lstm
 
 
 class Bot(object):
 
     def __init__(self):
 
+        self.session = None
+        self.m = None
         self._iteration = 0
         self._last_state = None
         self._last_action = None
@@ -22,6 +26,18 @@ class Bot(object):
         self.discount_rate = 0.85
         self.lr = 0.7
         self.lr_decay = 1
+        self.exploit = 0.95
+
+
+    def init_model(self):
+
+        initializer = tf.zeros_initializer
+        with tf.variable_scope('model', reuse=None, initializer=initializer):
+           self.m = lstm.LSTM(True)
+
+        self.m.assign_lr(self.session, 0.1)
+        tf.initialize_all_variables().run()
+
 
 
     def load_qvalues(self):
@@ -61,10 +77,18 @@ class Bot(object):
     def get_action(self, player_x, player_y, upperpipe_x, upperpipe_y, vel):
 
         state, qvalue = self.get_qvalue(player_x, player_y, upperpipe_x, upperpipe_y, vel)
-        action = np.argmax(qvalue) if qvalue[0] != qvalue[-1] else 0
+
+        """
+        if np.random.uniform() <= self.exploit:
+            action = np.argmax(qvalue) if qvalue[0] != qvalue[-1] else 0
+        else:
+            action = np.random.choice([0, 1])
+        """
 
         if self.last_state:
             self._moves.appendleft((self.last_state, self.last_action, state))
+
+        action = np.argmax(lstm.run_epoch(self.session, self.m, np.asarray([int(x) for x in state.split(':')]), self.m.train_op))
 
         self._last_state = state
         self._last_action = action
@@ -73,16 +97,16 @@ class Bot(object):
         return action
 
 
-    def update_qvalue(self, last_state, action, new_state, score):
-        self._qvalues[last_state][action] +=  self.lr * ((self.reward[score] + self.discount_rate * max(self.qvalues[new_state])) - self._qvalues[last_state][action])
+    def update_qvalue(self, last_state, action, new_state, r):
+        self._qvalues[last_state][action] +=  self.lr * ((self.reward[r] + self.discount_rate * max(self.qvalues[new_state])) - self._qvalues[last_state][action])
 
 
     def onCrash(self, ground=False, playerY=0, pipeY=0, pipeH=0):
 
         for i, (state, action, new_state) in enumerate(self.moves):
-            if i <= 2:
+            if i <= 1:
                 self.update_qvalue(state, action, new_state, 2)
-            elif ground or (action == 1 and playerY < (pipeY + pipeH - 5)):
+            elif (ground or (action == 1 and playerY < (pipeY + pipeH - 5))) and i < 50:
                 self.update_qvalue(state, action, new_state, 1)
             else:
                 self.update_qvalue(state, action, new_state, 0)

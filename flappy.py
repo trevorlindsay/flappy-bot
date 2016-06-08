@@ -1,5 +1,6 @@
 from itertools import cycle
 from collections import deque
+import tensorflow as tf
 import warnings
 import random
 import sys
@@ -90,36 +91,40 @@ def main():
     SOUNDS['swoosh'] = pygame.mixer.Sound('assets/audio/swoosh' + soundExt)
     SOUNDS['wing'] = pygame.mixer.Sound('assets/audio/wing' + soundExt)
 
-    while True:
+    with tf.Graph().as_default(), tf.Session() as session:
 
-        # select random background sprites
-        randBg = random.randint(0, len(BACKGROUNDS_LIST) - 1)
-        IMAGES['background'] = pygame.image.load(BACKGROUNDS_LIST[randBg]).convert()
+        bot.session = session
 
-        # select random player sprites
-        randPlayer = random.randint(0, len(PLAYERS_LIST) - 1)
-        IMAGES['player'] = (pygame.image.load(PLAYERS_LIST[randPlayer][0]).convert_alpha(),
-                            pygame.image.load(PLAYERS_LIST[randPlayer][1]).convert_alpha(),
-                            pygame.image.load(PLAYERS_LIST[randPlayer][2]).convert_alpha())
+        while True:
 
-        # select random pipe sprites
-        pipeindex = random.randint(0, len(PIPES_LIST) - 1)
-        IMAGES['pipe'] = (pygame.transform.rotate(pygame.image.load(PIPES_LIST[pipeindex]).convert_alpha(), 180),
-                          pygame.image.load(PIPES_LIST[pipeindex]).convert_alpha())
+            # select random background sprites
+            randBg = random.randint(0, len(BACKGROUNDS_LIST) - 1)
+            IMAGES['background'] = pygame.image.load(BACKGROUNDS_LIST[randBg]).convert()
 
-        # hitmask for pipes
-        HITMASKS['pipe'] = (getHitmask(IMAGES['pipe'][0]),
-                            getHitmask(IMAGES['pipe'][1]))
+            # select random player sprites
+            randPlayer = random.randint(0, len(PLAYERS_LIST) - 1)
+            IMAGES['player'] = (pygame.image.load(PLAYERS_LIST[randPlayer][0]).convert_alpha(),
+                                pygame.image.load(PLAYERS_LIST[randPlayer][1]).convert_alpha(),
+                                pygame.image.load(PLAYERS_LIST[randPlayer][2]).convert_alpha())
 
-        # hitmask for player
-        HITMASKS['player'] = (getHitmask(IMAGES['player'][0]),
-                              getHitmask(IMAGES['player'][1]),
-                              getHitmask(IMAGES['player'][2]))
+            # select random pipe sprites
+            pipeindex = random.randint(0, len(PIPES_LIST) - 1)
+            IMAGES['pipe'] = (pygame.transform.rotate(pygame.image.load(PIPES_LIST[pipeindex]).convert_alpha(), 180),
+                              pygame.image.load(PIPES_LIST[pipeindex]).convert_alpha())
 
-        movementInfo = showWelcomeAnimation()
-        crashInfo = mainGame(movementInfo)
-        showGameOverScreen(crashInfo)
-        bot.reset()
+            # hitmask for pipes
+            HITMASKS['pipe'] = (getHitmask(IMAGES['pipe'][0]),
+                                getHitmask(IMAGES['pipe'][1]))
+
+            # hitmask for player
+            HITMASKS['player'] = (getHitmask(IMAGES['player'][0]),
+                                  getHitmask(IMAGES['player'][1]),
+                                  getHitmask(IMAGES['player'][2]))
+
+            movementInfo = showWelcomeAnimation()
+            crashInfo = mainGame(movementInfo)
+            showGameOverScreen(crashInfo)
+            bot.reset()
 
 
 def showWelcomeAnimation():
